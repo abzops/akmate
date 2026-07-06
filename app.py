@@ -154,6 +154,9 @@ def download_audio():
         "youtube_include_dash_manifest": False,
         "youtube_include_hls_manifest": False,
         "check_formats": False,
+        "postprocessor_args": {
+            "FFmpegExtractAudio": ["-compression_level", "9", "-threads", "0"]
+        },
     }
     if COOKIES_FILE:
         ydl_opts["cookiefile"] = COOKIES_FILE
