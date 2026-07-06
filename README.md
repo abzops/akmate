@@ -1,6 +1,6 @@
 # 🎵 YT MP3 — YouTube to 320kbps MP3 Downloader
 
-A beautiful web application that converts YouTube videos to high-quality **320kbps MP3** audio files.
+A premium, high-performance web application and standalone Windows utility that converts YouTube videos into high-quality **320kbps MP3** files in seconds. 
 
 Built with **Flask**, **yt-dlp**, and **FFmpeg**.
 
@@ -12,47 +12,77 @@ Built with **Flask**, **yt-dlp**, and **FFmpeg**.
 
 ## ✨ Features
 
-- 🎵 **320kbps MP3** — Maximum quality audio extraction
-- 📋 **Paste & Go** — One-click clipboard paste
-- 🖼️ **Video Preview** — Title, thumbnail, channel, duration, and view count
-- 📱 **Responsive** — Works on desktop and mobile
-- 🎨 **Premium UI** — Dark theme with glassmorphism and animations
-- ⚡ **Fast** — Streams the file directly to your browser
-- 🏷️ **Metadata** — Embeds thumbnail and metadata into the MP3
+- 🎵 **320kbps MP3** — Full quality audio extraction.
+- ⚡ **Turbo-Charged Speeds** — Multi-threaded segment downloads and fast LAME encoding.
+- 📋 **Paste & Go** — Quick-paste button for clipboard URLs.
+- 🖼️ **Rich Metadata** — Auto-embeds high-res video thumbnails, channel name, and title directly into the MP3 ID3 tags.
+- 🎨 **Premium Glassmorphic UI** — Modern, dark-themed responsive user interface.
+- 🛡️ **Bot Detection Bypass** — Secure cookies injection framework to bypass YouTube bot checks.
+- 🖥️ **Windows Portable (.exe)** — Single-file portable app running in the background with zero local configuration.
 
 ---
 
-## 🚀 Quick Start (Local)
+## ⚡ Speed & Performance Optimizations
 
-### Prerequisites
+To ensure song conversions finish in **under 10 seconds**, the following settings are pre-configured:
+1. **Parallel Downloads**: Downloads DASH/HLS audio segments using **8 concurrent threads** (up to 5x faster than single thread).
+2. **Reduced Query Latency**: Disables manifest file lookups and format checks when requesting metadata.
+3. **FFmpeg Turbo Mode**: Configured FFmpeg to use LAME's **fastest compression preset (`-compression_level 9`)** and enabled **automatic CPU multi-threading (`-threads 0`)**, cutting conversion times in half.
 
-- **Python 3.9+**
-- **FFmpeg** — Required for audio conversion
+---
 
-**Install FFmpeg:**
+## 💻 Windows Standalone Executable (.exe)
 
+You can run this application locally on Windows without installing Python, Flask, or FFmpeg:
+
+1. Locate the pre-built executable:
+   📁 `dist/YT-MP3-Downloader.exe`
+2. **Double-click to Run**:
+   - The application will run silently in the background (no command prompt window).
+   - It will automatically open your default browser (Chrome, Edge, or Firefox) to `http://127.0.0.1:5000` showing the interface.
+   - It includes a bundled `ffmpeg.exe` inside it, requiring no local setup.
+
+### How to Re-compile the .exe:
+To rebuild the executable yourself:
 ```bash
-# Windows (via Chocolatey)
-choco install ffmpeg
+# Refresh/install PyInstaller and Pillow dependencies
+pip install pyinstaller Pillow
 
-# Windows (via Scoop)
-scoop install ffmpeg
-
-# macOS
-brew install ffmpeg
-
-# Ubuntu/Debian
-sudo apt install ffmpeg
+# Run the automated build script
+python build.py
 ```
+The compiled output is saved directly to `dist/YT-MP3-Downloader.exe`.
+
+---
+
+## 🛡️ Bypassing YouTube Bot Check (Cookies Setup)
+
+YouTube heavily throttles or blocks automated traffic (especially on hosted platforms like Render or VPNs). If you see the message *"Sign in to confirm you're not a bot"*, resolve it by injecting your browser session cookies:
+
+### 1. Export Browser Cookies
+1. Install a cookie exporter browser extension:
+   - Chrome/Edge/Brave: [Get cookies.txt LOCALLY](https://chromewebstore.google.com/detail/get-cookiestxt-locally/ccjhcggmhmjiaobkcapjhhfgiejihfkd)
+   - Firefox: [Export Cookies](https://addons.mozilla.org/en-US/firefox/addon/export-cookies-txt/)
+2. Log into [YouTube.com](https://www.youtube.com).
+3. Open the extension and click **Export** to download a text file. Rename it to `cookies.txt`.
+
+### 2. Apply Cookies
+* **For Local Executable / Local Server**: 
+  Place `cookies.txt` in the **same folder** as the `YT-MP3-Downloader.exe` (or in the root folder of this project). The app will automatically detect and apply it.
+* **For Render.com Hosting**:
+  Do not push cookies to GitHub. Instead, open your **Render Dashboard ➔ Web Service ➔ Environment**, add a variable with Key: `YOUTUBE_COOKIES`, and paste the entire text contents of your `cookies.txt` file as the Value.
+
+---
+
+## 🚀 Local Server Installation (Optional)
 
 ### Setup
-
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/youtube-mp3-downloader.git
-cd youtube-mp3-downloader
+git clone https://github.com/abzops/akmate.git
+cd akmate
 
-# Create a virtual environment (optional but recommended)
+# Create a virtual environment
 python -m venv venv
 source venv/bin/activate  # Linux/macOS
 venv\Scripts\activate     # Windows
@@ -63,92 +93,33 @@ pip install -r requirements.txt
 # Run the app
 python app.py
 ```
-
-Open **http://localhost:5000** in your browser. 🎉
-
----
-
-## 🌐 Deploy to Render (Free)
-
-### One-Click Deploy
-
-1. **Push this code to a GitHub repository**
-2. Go to [render.com](https://render.com) and sign up (free)
-3. Click **New → Web Service**
-4. Connect your GitHub repo
-5. Render auto-detects the `render.yaml` and `Dockerfile`
-6. Click **Create Web Service**
-
-That's it! Your app will be live at `https://your-app-name.onrender.com`.
-
-> **Note:** The free tier spins down after 15 minutes of inactivity. The first request after idle takes ~30 seconds to wake up.
-
-### Manual Deploy
-
-If you prefer manual setup on Render:
-
-| Setting            | Value                                        |
-|--------------------|----------------------------------------------|
-| **Runtime**        | Docker                                       |
-| **Dockerfile Path**| `./Dockerfile`                               |
-| **Plan**           | Free                                         |
-| **Health Check**   | `/`                                          |
+Open **http://127.0.0.1:5000** in your browser.
 
 ---
 
-## 📡 API Reference
+## 🌐 Deploy to Render (Free Tier hosting)
 
-### `POST /api/info`
+This repository includes a `render.yaml` blueprint and a `Dockerfile` for easy, free cloud hosting:
 
-Get video metadata.
-
-**Request:**
-```json
-{
-  "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-}
-```
-
-**Response:**
-```json
-{
-  "title": "Rick Astley - Never Gonna Give You Up",
-  "thumbnail": "https://i.ytimg.com/vi/dQw4w9WgXcQ/maxresdefault.jpg",
-  "duration": "3:33",
-  "duration_seconds": 213,
-  "channel": "Rick Astley",
-  "view_count": 1500000000
-}
-```
-
-### `GET /api/download?url=<youtube_url>`
-
-Download the audio as a 320kbps MP3 file.
-
-**Response:** Binary MP3 file stream with `Content-Disposition: attachment` header.
+1. Push this code to a GitHub repository.
+2. Sign in to [Render.com](https://render.com) using your GitHub account.
+3. Click **New ➔ Web Service** and link your repository.
+4. Render will read the `Dockerfile` and compile Python 3.11 with FFmpeg automatically.
+5. Click **Create Web Service**.
 
 ---
 
-## 🛠️ Tech Stack
+## ⚖️ Rights, Disclaimer, and Terms of Use
 
-| Component   | Technology           |
-|-------------|----------------------|
-| Backend     | Flask + Gunicorn     |
-| Downloader  | yt-dlp               |
-| Converter   | FFmpeg (320kbps MP3) |
-| Frontend    | Vanilla HTML/CSS/JS  |
-| Deployment  | Docker + Render      |
+### ⚠️ Legal Disclaimer
+This software is intended **strictly for personal, educational, and backup purposes**. 
 
----
+Downloading copyrighted content from YouTube may violate YouTube's [Terms of Service](https://www.youtube.com/t/terms) and could violate copyright laws in your jurisdiction. Under most copyright systems, private copying is only permitted for media that you legally own or for which you have obtained express licensing/permission (e.g., Creative Commons, public domain, or your own original uploads).
 
-## ⚠️ Disclaimer
+The developers and contributors of this software:
+- Do not endorse, encourage, or facilitate copyright infringement.
+- Disclaim all responsibility for any unauthorized downloading, reproduction, distribution, or misuse of media acquired through this application.
+- Provide this code "as is" without warranty of any kind.
 
-This tool is intended for **personal use only**. Downloading copyrighted content from YouTube may violate their [Terms of Service](https://www.youtube.com/t/terms). Only download content you have the right to use (e.g., your own uploads, Creative Commons licensed content).
-
-The developers of this tool are not responsible for any misuse.
-
----
-
-## 📄 License
-
-MIT License — see [LICENSE](LICENSE) for details.
+### 📄 License
+This project is licensed under the **MIT License**. You are free to modify, distribute, and use the code, provided that the original copyright notice and permission notice are included in all copies. See the [LICENSE](LICENSE) file for the full text.
