@@ -2,3 +2,5 @@ flask==3.1.1
 flask-cors==5.0.1
 yt-dlp
 gunicorn
+pywebview==6.2.1
+Pillow==11.3.0
