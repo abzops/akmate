@@ -3,13 +3,37 @@ import uuid
 import tempfile
 import shutil
 import re
+import sys
 
 from flask import Flask, request, jsonify, send_file, render_template
 from flask_cors import CORS
 import yt_dlp
 
-app = Flask(__name__)
+def get_resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
+# Initialize Flask dynamically for PyInstaller compatibility
+if getattr(sys, 'frozen', False):
+    template_folder = get_resource_path('templates')
+    static_folder = get_resource_path('static')
+    app = Flask(__name__, template_folder=template_folder, static_folder=static_folder)
+else:
+    app = Flask(__name__)
+
 CORS(app)
+
+# Helper to find ffmpeg binary
+def get_ffmpeg_dir():
+    if getattr(sys, 'frozen', False):
+        return sys._MEIPASS
+    if os.path.exists("ffmpeg.exe"):
+        return os.path.abspath(".")
+    return None
 
 # Temporary download directory
 DOWNLOAD_DIR = os.path.join(tempfile.gettempdir(), "ytmp3_downloads")
@@ -57,6 +81,11 @@ def video_info():
     }
     if COOKIES_FILE:
         ydl_opts["cookiefile"] = COOKIES_FILE
+    
+    ffmpeg_dir = get_ffmpeg_dir()
+    if ffmpeg_dir:
+        ydl_opts["ffmpeg_location"] = ffmpeg_dir
+
 
 
     try:
@@ -121,6 +150,11 @@ def download_audio():
     }
     if COOKIES_FILE:
         ydl_opts["cookiefile"] = COOKIES_FILE
+    
+    ffmpeg_dir = get_ffmpeg_dir()
+    if ffmpeg_dir:
+        ydl_opts["ffmpeg_location"] = ffmpeg_dir
+
 
 
     try:
@@ -166,5 +200,18 @@ def download_audio():
 
 
 if __name__ == "__main__":
+    import webbrowser
+    from threading import Timer
+
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    is_frozen = getattr(sys, 'frozen', False)
+    
+    # Auto-open web browser when running locally
+    def open_browser():
+        webbrowser.open(f"http://127.0.0.1:{port}")
+
+    if is_frozen or os.environ.get("AUTO_OPEN") != "false":
+        Timer(1.5, open_browser).start()
+    
+    # Run server
+    app.run(host="127.0.0.1", port=port, debug=not is_frozen)
