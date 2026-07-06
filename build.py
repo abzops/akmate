@@ -44,20 +44,29 @@ def main():
     print("Cleaning up old builds...")
     for folder in ["build", "dist"]:
         if os.path.exists(folder):
-            shutil.rmtree(folder)
+            try:
+                shutil.rmtree(folder)
+            except PermissionError:
+                print("\n[ERROR] Permission denied: Cannot clean up the old build.")
+                print("Please make sure you have CLOSED the 'YT-MP3-Downloader.exe' application on your screen, and try again!")
+                sys.exit(1)
     if os.path.exists("YT-MP3-Downloader.spec"):
-        os.remove("YT-MP3-Downloader.spec")
+        try:
+            os.remove("YT-MP3-Downloader.spec")
+        except Exception:
+            pass
 
     # 4. Build single-file executable using PyInstaller
     # --add-data: includes frontend assets (templates and static folders)
     # --add-binary: includes the ffmpeg.exe binary inside the executable
     print("Building standalone executable (this may take a minute)...")
     pyinstaller_cmd = (
-        f'"{sys.executable}" -m PyInstaller --onefile --noconfirm '
+        f'"{sys.executable}" -m PyInstaller --onefile --noconfirm --noconsole '
         '--name "YT-MP3-Downloader" '
         '--add-data "templates;templates" '
         '--add-data "static;static" '
         '--add-binary "ffmpeg.exe;." '
+        '--icon "app_icon.ico" '
         'app.py'
     )
     

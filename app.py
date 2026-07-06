@@ -78,6 +78,9 @@ def video_info():
         "quiet": True,
         "no_warnings": True,
         "skip_download": True,
+        "youtube_include_dash_manifest": False,
+        "youtube_include_hls_manifest": False,
+        "check_formats": False,
     }
     if COOKIES_FILE:
         ydl_opts["cookiefile"] = COOKIES_FILE
@@ -147,6 +150,10 @@ def download_audio():
         "outtmpl": os.path.join(job_dir, "audio.%(ext)s"),
         "quiet": True,
         "no_warnings": True,
+        "concurrent_fragment_downloads": 8,  # 8 threads for faster downloads
+        "youtube_include_dash_manifest": False,
+        "youtube_include_hls_manifest": False,
+        "check_formats": False,
     }
     if COOKIES_FILE:
         ydl_opts["cookiefile"] = COOKIES_FILE
@@ -200,18 +207,45 @@ def download_audio():
 
 
 if __name__ == "__main__":
-    import webbrowser
-    from threading import Timer
-
+    import threading
     port = int(os.environ.get("PORT", 5000))
     is_frozen = getattr(sys, 'frozen', False)
     
-    # Auto-open web browser when running locally
+    def start_flask():
+        app.run(host="127.0.0.1", port=port, debug=False)
+
+    if is_frozen or os.environ.get("DESKTOP_MODE") == "true":
+        # Launch in native desktop app window (pywebview)
+        try:
+            import webview
+            
+            # Run Flask server in a background thread
+            server_thread = threading.Thread(target=start_flask)
+            server_thread.daemon = True
+            server_thread.start()
+            
+            # Start GUI window
+            webview.create_window(
+                title="YT MP3 Downloader",
+                url=f"http://127.0.0.1:{port}",
+                width=800,
+                height=700,
+                resizable=True,
+                min_size=(640, 500)
+            )
+            webview.start()
+            sys.exit(0)
+        except Exception as e:
+            print(f"Failed to start desktop mode: {e}. Falling back to browser...")
+
+    # Default browser fallback mode
+    import webbrowser
+    from threading import Timer
+
     def open_browser():
         webbrowser.open(f"http://127.0.0.1:{port}")
 
     if is_frozen or os.environ.get("AUTO_OPEN") != "false":
         Timer(1.5, open_browser).start()
     
-    # Run server
     app.run(host="127.0.0.1", port=port, debug=not is_frozen)
