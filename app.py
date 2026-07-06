@@ -39,16 +39,29 @@ def get_ffmpeg_dir():
 DOWNLOAD_DIR = os.path.join(tempfile.gettempdir(), "ytmp3_downloads")
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
+# Path helper for checking local file paths relative to the EXE or script
+def get_file_path(filename):
+    if getattr(sys, 'frozen', False):
+        exe_dir = os.path.dirname(sys.executable)
+        path = os.path.join(exe_dir, filename)
+        if os.path.exists(path):
+            return path
+    if os.path.exists(filename):
+        return os.path.abspath(filename)
+    return None
+
 # YouTube Cookies setup to bypass bot protection
 COOKIES_FILE = None
-if os.path.exists("cookies.txt"):
-    COOKIES_FILE = "cookies.txt"
+local_cookies = get_file_path("cookies.txt")
+if local_cookies:
+    COOKIES_FILE = local_cookies
 elif os.environ.get("YOUTUBE_COOKIES"):
     # Write environment variable cookies to a temp file
     temp_cookies_path = os.path.join(tempfile.gettempdir(), "youtube_cookies.txt")
     with open(temp_cookies_path, "w", encoding="utf-8") as f:
         f.write(os.environ.get("YOUTUBE_COOKIES"))
     COOKIES_FILE = temp_cookies_path
+
 
 
 
@@ -113,7 +126,12 @@ def video_info():
         })
 
     except yt_dlp.utils.DownloadError as e:
-        return jsonify({"error": f"Could not retrieve video info: {str(e)}"}), 400
+        err_msg = str(e)
+        if "confirm you're not a bot" in err_msg or "Sign in" in err_msg:
+            return jsonify({
+                "error": "YouTube bot check triggered. Please export your browser cookies as 'cookies.txt' and place it next to this application's .exe file, then restart the app."
+            }), 403
+        return jsonify({"error": f"Could not retrieve video info: {err_msg}"}), 400
     except Exception as e:
         return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
@@ -203,52 +221,30 @@ def download_audio():
 
     except yt_dlp.utils.DownloadError as e:
         shutil.rmtree(job_dir, ignore_errors=True)
-        return jsonify({"error": f"Download failed: {str(e)}"}), 400
+        err_msg = str(e)
+        if "confirm you're not a bot" in err_msg or "Sign in" in err_msg:
+            return jsonify({
+                "error": "YouTube bot check triggered. Please export your browser cookies as 'cookies.txt' and place it next to this application's .exe file, then restart the app."
+            }), 403
+        return jsonify({"error": f"Download failed: {err_msg}"}), 400
     except Exception as e:
         shutil.rmtree(job_dir, ignore_errors=True)
         return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
 
 if __name__ == "__main__":
-    import threading
-    port = int(os.environ.get("PORT", 5000))
-    is_frozen = getattr(sys, 'frozen', False)
-    
-    def start_flask():
-        app.run(host="127.0.0.1", port=port, debug=False)
-
-    if is_frozen or os.environ.get("DESKTOP_MODE") == "true":
-        # Launch in native desktop app window (pywebview)
-        try:
-            import webview
-            
-            # Run Flask server in a background thread
-            server_thread = threading.Thread(target=start_flask)
-            server_thread.daemon = True
-            server_thread.start()
-            
-            # Start GUI window
-            webview.create_window(
-                title="YT MP3 Downloader",
-                url=f"http://127.0.0.1:{port}",
-                width=800,
-                height=700,
-                resizable=True,
-                min_size=(640, 500)
-            )
-            webview.start()
-            sys.exit(0)
-        except Exception as e:
-            print(f"Failed to start desktop mode: {e}. Falling back to browser...")
-
-    # Default browser fallback mode
     import webbrowser
     from threading import Timer
 
+    port = int(os.environ.get("PORT", 5000))
+    is_frozen = getattr(sys, 'frozen', False)
+    
+    # Auto-open web browser when running locally
     def open_browser():
         webbrowser.open(f"http://127.0.0.1:{port}")
 
     if is_frozen or os.environ.get("AUTO_OPEN") != "false":
-        Timer(1.5, open_browser).start()
+        Timer(1.2, open_browser).start()
     
+    # Run server (debug is False when frozen to prevent multiple spawns)
     app.run(host="127.0.0.1", port=port, debug=not is_frozen)
