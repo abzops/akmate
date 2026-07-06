@@ -1,0 +1,152 @@
+import os
+import uuid
+import tempfile
+import shutil
+import re
+
+from flask import Flask, request, jsonify, send_file, render_template
+from flask_cors import CORS
+import yt_dlp
+
+app = Flask(__name__)
+CORS(app)
+
+# Temporary download directory
+DOWNLOAD_DIR = os.path.join(tempfile.gettempdir(), "ytmp3_downloads")
+os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+
+
+def sanitize_filename(name: str) -> str:
+    """Remove characters that are unsafe for filenames."""
+    return re.sub(r'[\\/*?:"<>|]', "", name).strip()
+
+
+@app.route("/")
+def index():
+    """Serve the web UI."""
+    return render_template("index.html")
+
+
+@app.route("/api/info", methods=["POST"])
+def video_info():
+    """Return metadata for a YouTube video (title, thumbnail, duration)."""
+    data = request.get_json(silent=True)
+    if not data or "url" not in data:
+        return jsonify({"error": "Missing 'url' in request body"}), 400
+
+    url = data["url"].strip()
+    if not url:
+        return jsonify({"error": "URL cannot be empty"}), 400
+
+    ydl_opts = {
+        "quiet": True,
+        "no_warnings": True,
+        "skip_download": True,
+    }
+
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+
+        duration_secs = info.get("duration", 0) or 0
+        minutes, seconds = divmod(int(duration_secs), 60)
+        hours, minutes = divmod(minutes, 60)
+        if hours:
+            duration_str = f"{hours}:{minutes:02d}:{seconds:02d}"
+        else:
+            duration_str = f"{minutes}:{seconds:02d}"
+
+        return jsonify({
+            "title": info.get("title", "Unknown"),
+            "thumbnail": info.get("thumbnail", ""),
+            "duration": duration_str,
+            "duration_seconds": duration_secs,
+            "channel": info.get("channel", info.get("uploader", "Unknown")),
+            "view_count": info.get("view_count", 0),
+        })
+
+    except yt_dlp.utils.DownloadError as e:
+        return jsonify({"error": f"Could not retrieve video info: {str(e)}"}), 400
+    except Exception as e:
+        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+
+@app.route("/api/download", methods=["GET"])
+def download_audio():
+    """Download YouTube audio as 320kbps MP3 and stream it to the client."""
+    url = request.args.get("url", "").strip()
+    if not url:
+        return jsonify({"error": "Missing 'url' query parameter"}), 400
+
+    # Create a unique subdirectory for this download
+    job_id = uuid.uuid4().hex
+    job_dir = os.path.join(DOWNLOAD_DIR, job_id)
+    os.makedirs(job_dir, exist_ok=True)
+
+    ydl_opts = {
+        "format": "bestaudio/best",
+        "postprocessors": [
+            {
+                "key": "FFmpegExtractAudio",
+                "preferredcodec": "mp3",
+                "preferredquality": "320",
+            },
+            {
+                "key": "FFmpegMetadata",
+                "add_metadata": True,
+            },
+            {
+                "key": "EmbedThumbnail",
+            },
+        ],
+        "writethumbnail": True,
+        "outtmpl": os.path.join(job_dir, "audio.%(ext)s"),
+        "quiet": True,
+        "no_warnings": True,
+    }
+
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            title = sanitize_filename(info.get("title", "download"))
+
+        # Find the resulting .mp3 file
+        mp3_file = None
+        for f in os.listdir(job_dir):
+            if f.endswith(".mp3"):
+                mp3_file = os.path.join(job_dir, f)
+                break
+
+        if not mp3_file or not os.path.exists(mp3_file):
+            return jsonify({"error": "Conversion failed — MP3 file not found"}), 500
+
+        download_name = f"{title}.mp3"
+
+        def cleanup_after_send(response):
+            """Remove temporary files after the response is sent."""
+            try:
+                shutil.rmtree(job_dir, ignore_errors=True)
+            except Exception:
+                pass
+            return response
+
+        response = send_file(
+            mp3_file,
+            as_attachment=True,
+            download_name=download_name,
+            mimetype="audio/mpeg",
+        )
+        response.call_on_close(lambda: shutil.rmtree(job_dir, ignore_errors=True))
+        return response
+
+    except yt_dlp.utils.DownloadError as e:
+        shutil.rmtree(job_dir, ignore_errors=True)
+        return jsonify({"error": f"Download failed: {str(e)}"}), 400
+    except Exception as e:
+        shutil.rmtree(job_dir, ignore_errors=True)
+        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=True)
