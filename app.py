@@ -15,6 +15,18 @@ CORS(app)
 DOWNLOAD_DIR = os.path.join(tempfile.gettempdir(), "ytmp3_downloads")
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
+# YouTube Cookies setup to bypass bot protection
+COOKIES_FILE = None
+if os.path.exists("cookies.txt"):
+    COOKIES_FILE = "cookies.txt"
+elif os.environ.get("YOUTUBE_COOKIES"):
+    # Write environment variable cookies to a temp file
+    temp_cookies_path = os.path.join(tempfile.gettempdir(), "youtube_cookies.txt")
+    with open(temp_cookies_path, "w", encoding="utf-8") as f:
+        f.write(os.environ.get("YOUTUBE_COOKIES"))
+    COOKIES_FILE = temp_cookies_path
+
+
 
 def sanitize_filename(name: str) -> str:
     """Remove characters that are unsafe for filenames."""
@@ -43,6 +55,9 @@ def video_info():
         "no_warnings": True,
         "skip_download": True,
     }
+    if COOKIES_FILE:
+        ydl_opts["cookiefile"] = COOKIES_FILE
+
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -104,6 +119,9 @@ def download_audio():
         "quiet": True,
         "no_warnings": True,
     }
+    if COOKIES_FILE:
+        ydl_opts["cookiefile"] = COOKIES_FILE
+
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
