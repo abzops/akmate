@@ -91,9 +91,11 @@ def video_info():
         "quiet": True,
         "no_warnings": True,
         "skip_download": True,
-        "youtube_include_dash_manifest": False,
-        "youtube_include_hls_manifest": False,
-        "check_formats": False,
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["android", "web"]
+            }
+        },
     }
     if COOKIES_FILE:
         ydl_opts["cookiefile"] = COOKIES_FILE
@@ -169,9 +171,11 @@ def download_audio():
         "quiet": True,
         "no_warnings": True,
         "concurrent_fragment_downloads": 8,  # 8 threads for faster downloads
-        "youtube_include_dash_manifest": False,
-        "youtube_include_hls_manifest": False,
-        "check_formats": False,
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["android", "web"]
+            }
+        },
         "postprocessor_args": {
             "FFmpegExtractAudio": ["-compression_level", "9", "-threads", "0"]
         },
